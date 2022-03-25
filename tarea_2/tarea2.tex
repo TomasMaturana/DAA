@@ -1,0 +1,473 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsthm}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{algorithm}
+\usepackage{multicol}
+\usepackage{subcaption}
+\usepackage[noend]{algpseudocode}
+\makeatletter
+\renewcommand{\ALG@name}{Algoritmo}
+\makeatother
+
+
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.9}
+
+%%%%%% Aquí comienza el documento %%%%%%%%
+
+
+\title{Implementación eficiente de algoritmo de Dijkstra}
+\author{Lukas Gribbell \and Tomás Maturana \and Sebastián Sepúlveda}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+	En este informe se presenta el trabajo realizado sobre la implementación del algoritmo Dijkstra, con el fin de determinar la estructura de datos más eficiente para el algoritmo. Para este estudio se utilizaron los aprendizajes de análisis de costo de algoritmos y análisis amortizado, entregados en el curso. La metodología ocupada para la generación de archivos fue aleatoria y se experimentó con las estructuras binary heap y Fibonacci heap. Los resultados mostraron que el algoritmo de Dijkstra tiene una menor cantidad de comparaciones utilizando una cola de Fibonacci si la densidad o número de vértices del grafo aumenta. Mientras que para pocos vértices y una menor densidad del grafo, el algoritmo tiene un comportamiento similar independiente de la cola utilizada. 
+\end{abstract}
+
+
+
+\section{Introducción}
+El problema a tratar consiste en verificar diferencias de rendimiento del algoritmo Dijkstra según la cola de prioridad utilizada. El algoritmo debe entregar el camino mínimo entre un nodo inicial y todos los otros nodos del grafo y para esto se usa una cola de prioridad $Q$ que mantiene una lista de pares elemento-clave. Es necesario que la cola de prioridad permita insertar elementos, extraer el elemento de valor mínimo, disminuir prioridades y saber si la cola está vacía. Se experimentará el uso de \textit{Heap Binomial} y de \textit{Heap de Fibonacci} para la cola de prioridad, usando la siguiente implementación del algoritmo: \\
+
+%%%%%%%%%%%%%%%%
+%% P1 
+%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%% PARTE 3 %%%%%%%%%%%%%%%%%%%%%
+\begin{algorithm}
+\caption{Algoritmo Dijkstra}
+\label{alg:Dijkstra}
+\begin{algorithmic}[1]
+\Procedure{Dijkstra}{V, E, s}
+\State $\textit{d} \gets \textbf{infinite}(V.length)$
+\State $\textit{d[s]} \gets 0$
+\State $\textit{Q} \gets \phi $
+\For{$v \in \{V\}$}
+    \State $\textit{Q.insert(v, d[v])} $
+\EndFor
+\While{$!Q.empty()$}
+    \State $\textit{n} \gets \textit{Q.extractMin()} $
+    \State $\textit{vecinos} \gets \textit{E.vecinos(n)} $
+    \For{$vec \in \textit{vecinos}$}
+        \If{$d[vec.nodo2] > d[n] + vec.peso$} 
+            \State $d[vec.nodo2] \gets d[n] + vec.peso$
+            \State $decrease\_key(vec.nodo2, d[vec.nodo2])$
+        \EndIf
+    \EndFor
+\EndWhile
+
+\State \Return \textit{d}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{Análisis de costos}
+
+Cada estructura permite realizar las operaciones necesarias con ciertas diferencias en sus costos, como se observa en la \textbf{Tabla \ref{tab:costs}}
+
+%%    PARTE 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|} \hline
+                      & PC/Binario & PC/Fibonacci & CA/Binario & CA/Fibonacci \\ \hline
+\texttt{extract-min}  &   log(n)   &   n log(n)   &   log(n)   &    log(n)    \\ \hline
+\texttt{insert}       &   log(n)   &      1       &   log(n)   &      1       \\ \hline
+\texttt{empty}        &     1      &      1       &     1      &      1       \\ \hline
+\texttt{decrease-key} &   log(n)   &      1       &   log(n)   &      1       \\ \hline
+\end{tabular}
+\caption{Costos peor caso (PC) y caso amortizado (CA) en colas de prioridad}
+\label{tab:costs}
+\end{table}
+
+%*** Me falta revisar qué va aquí y qué va en el anexo + demostraciones en anexo***
+\subsection{Binary Heap}
+
+\begin{itemize}
+    \item \textbf{extract-min}: Para esta cola, el peor caso tiene un costo de O(log(n)), ya que el mínimo se encuentra en la raíz y se puede eliminar en tiempo constante, sin embargo, se debe reordenar la estructura. Reordenar la estructura es O(log(n)), ya que luego de extraer la raíz, se hace swap con la hoja de más a la derecha y se compara con sus hijos hasta llegar a la posición adecuada, por lo tanto en el peor caso, el elemento vuelve a ser una hoja, habiéndose comparado log(n) veces. El costo amortizado de esta operación es el mismo que el peor caso, ya que luego de extraer el mínimo, la estructura permite nuevamente tener un peor caso al extraer nuevamente el mínimo.
+    \item \textbf{insert}: En la implementación binaria, el peor caso sucede cuando se inserta un elemento que pasa a ser el nuevo mínimo, por lo cual debe compararse con todos sus nodos padre hasta llegar a ser la raíz. El costo de todas esas comparaciones y swap es O(log(n)). El costo amortizado de esta operación es igual que el peor caso, ya que siempre se pueden insertar elementos con claves menores, que lleguen a ser el mínimo. (Asumiendo la existencia de claves negativas)
+    \item \textbf{empty}: Constante en el peor caso y en el caso amortizado, pues se actualiza al insertar un elemento y al extraer el último.
+    \item \textbf{decrease-key}: En la implementación binaria, el peor caso ocurre al disminuir la clave de una hoja y que ésta llegue a ser la raíz, recorriendo todos los niveles del árbol. Es por esto que el peor caso es O(log(n)). El costo amortizado no mejora, ya que siempre se pueden encontrar claves cada vez menores que hagan recorrer todo el árbol al cambiarle la clave a una hoja.
+\end{itemize}
+
+\subsection{Fibonacci Heap}
+
+\begin{itemize}
+    \item \textbf{extract-min}: Para Fibonacci, luego de extraer el mínimo en tiempo constante y añadir los hijos de este nodo a la raíz del bosque, ya no se tiene el registro del mínimo, por lo que se deben sumar todos los árboles de mismo grado que contiene el bosque binomial de manera recursiva, que en el peor caso son sólo árboles de la misma profundidad, formando una cola binomial a un costo de O(m+log(n)) (con m cantidad de nodos en la raíz). Luego, el costo de extraer el mínimo es O(log(n)), ya que la estructura pasa a ser una cola binomial. El costo amortizado de esta operación es O(log(n)).
+    \item \textbf{insert}: la operación insert se hace en tiempo constante, agregando un árbol a la raíz del bosque. Solo es necesario comparar el nuevo elemento con el mínimo, dado que en el caso de que sea menor, pasará a ser el nuevo mínimo de la cola. Por la misma razón, el costo amortizado de esta operación es O(1).
+    \item \textbf{empty}: Constante en el peor caso y en el caso amortizado, pues solo verifica que exista al menos un nodo en el bosque.
+    \item \textbf{decrease-key}: Para la implementación de Fibonacci, se puede hacer en tiempo constante. Debido a que en el mejor caso, el nuevo valor no daña la estructura del heap y no se moverá el nuevo nodo. En el peor caso el nuevo valor es menor que su padre y lo que se hace es cortar la conexión padre-hijo y añadir el hijo a la raíz del bosque, por lo que también es tiempo constante ya que solo toma 1 comparación.
+\end{itemize}
+
+\newpage
+
+\section{Hipótesis}
+%%%%%%%%%%%%% PARTE 4 %%%%%%%%%%%%%%%%%%%%%
+Se puede hacer un análisis de complejidad al pseudocódigo de Dijsktra para predecir teóricamente el rendimiento del algoritmo, dependiendo de la cola de prioridad utilizada. Cabe destacar que toda la complejidad del algoritmo se concentra en el \textit{while}, por lo que se procede a analizar dicha sección.
+\\
+
+Si se usa un heap binario, extraer repetidamente el mínimo de Q tiene un costo de $O(|V| log(|V|))$. Luego, para cada nodo extraído se busca el nodo adyacente que tiene menor peso. Si la cantidad de nodos adyacentes es $|A|$, el costo se eleva hasta $O(|V| \cdot (log(|V|) + |A| \cdot log(|V|)))$. En el peor caso, se tiene un grafo completo y además por cada vecino se hace un \textbf{decrease-key}, por lo que el costo del algoritmo en el peor caso sería $O(|V|^2 \cdot log(|V|))$. \\
+
+Si se usa un heap de Fibonacci, la primera extracción del mínimo es cara, ya que se tiene un bosque con $|V|$ árboles de profundidad 0 que se debe reestructurar. La reordenación de la estructura tiene costo $O(log(|V|) + |V|)$. En el peor caso, se tiene un grafo completo y además por cada vecino analizado se hace un \textbf{decrease-key} que agrega un elemento al bosque, por lo tanto en la siguiente extracción del mínimo se debe volver a reordenar la estructura, pero esta vez con costo $O(log(|V|) + vec)$, ya que se deben agregar los nuevos árboles al bosque principal. El algoritmo en total, es de costo amortizado $O(|V| \cdot (log(|V|) + vec))$, es decir, en el peor caso $O(|V|^2)$, ya que a diferencia de la implementación binaria, el costo de \textbf{decrease-key} es constante. \\
+
+
+A pesar de tener una iteración con costo alto y luego de hacer extracciones de mínimo a un costo superior que en la implementación binaria, la implementación de Fibonacci promete menores costos en todo escenario. La diferencia de rendimiento se notará al aumentar la cantidad de nodos del grafo. La densidad del grafo aumentará el costo del algoritmo porque se deberán hacer más comparaciones, independientemente de la estructura utilizada. Además, una mayor densidad implica mayor posibilidad de hacer \textbf{decrease-key}, que en el caso de la implementación binaria tiene costo $O(log(n))$ y en la implementación de Fibonacci $O(1)$, a costa de un \textbf{extract-min} levemente más caro. \\
+
+En efecto, se espera que el algoritmo tenga un mejor rendimiento al usar un heap de Fibonacci y la diferencia será más evidente al tener mayor cantidad de nodos $|V|$. Además, para una misma cantidad de nodos, se espera que Fibonacci mantenga su mejor rendimiento, a pesar de los \textbf{extract-min} más caros, debido a que el costo extra en \textbf{decrease-key} por parte de la cola binaria, hará que esta implementación de Dijkstra no sea la más óptima.
+
+
+
+%Si bien el costo amortizado de la implementación de Fibonacci es atractivo en vez del costo de la implementación binaria, esto dependerá de la cantidad de decrease$\_$key que se deben hacer por nodo, ya que mientras menos se hagan, se podrán hacer más operaciones de extracción del mínimo con costo bajo. Esto está directamente relacionado con la densidad del grafo $ \rho $, ya que teniendo un grafo más denso, se deberán revisar más vecinos por nodo, aumentando la posibilidad de hacer varios decrease$\_$key antes de un nuevo extract$\_$min. \\
+
+%En efecto, se espera que a partir de un cierto $\rho ^*$, la implementación binaria tendrá igual o mejor rendimiento que la de fibonacci. Además, se espera que la cantidad de nodos $|V|$, no afectará el rendimiento entre las dos implementaciones para un $\rho$ fijo.
+
+\newpage
+
+\section{Diseño experimental}
+
+\subsection{Generación aleatoria de grafos conexos}
+% PUNTO 2 generación aleatoria de grafos conexos
+Para poder realizar experimentos sobre el costo de los algoritmos respecto a la cantidad de vertices $|V|$ y la densidad $\rho$ se estudia primero la generación de grafos conexos de la siguiente manera:
+
+\begin{itemize}
+    \item Dada una cantidad $N$ de vértices y una densidad $\rho$, se calcula el número total de aristas $|E|$ que tendría un grafo conexo de $N$ vértices, lo cual está dado por la siguiente fórmula:
+    \begin{equation*}
+        |E| = \binom{N}{2}= \frac{N(N-1)}{2}
+    \end{equation*}
+    \item Se genera un arreglo $P$ que tenga distribución binomial $\rho$ de 1's y 0's con un total de $|E|$ elementos
+    \item Se itera dentro del conjunto $Y = \{1,2, ..., N\}$ que representan los vértices iniciales del conjunto de pares $V = \{(v1,v2), (v1, v3), ..., (v_{n-1}, v_{n})\}$ y luego se itera sobre el conjunto $Z = \{y_i+1, ..., N-y_i\}$ donde $y_i$ es el elemento del conjunto $Y$ donde llegaría la arista en cuestión. Se itera sobre ese subconjunto de vértices para que no hayan aristas repetidas, ya que si incluimos la arista $(y_1,y_3)$ por ejemplo, significa que la arista $(y_3,y_1)$ no debería incluirse dado que es la misma ya mencionada.
+    \item Luego, para generar las aristas del grafo se consulta al arreglo $P$ si la arista pertenece o no al grafo. Si el valor de P asignado para la arista es 1, se agrega al grafo. En el caso contrario será necesario comprobar si corresponde a un par $(v_i,v_{i+1})$ ya que este valor hay que agregarlo sin duda para asegurar conexidad, y si no es el caso se ignora y no se agrega al grafo.
+    \item Finalmente, a cada par $(v_i, v_j)$ aceptado se le asocia un peso $w$ escogido de manera aleatoria entre $[1, 10^9]$.
+    \item Una vez terminada la iteración, se escoge al azar un vértice del grafo el cual será el nodo de origen de donde partirá el algoritmo de Dijkstra.
+\end{itemize}
+\\
+El pseudocódigo asociado al algoritmo anteriormente descrito se encuentra en el \textbf{Anexo}. 
+\\
+El grafo aleatoriamente formado tiene una cantidad total de aristas aproximado a la siguiente fórmula:
+$$
+   |E| \simeq (N-1) + \left(\frac{(N-1) (N-2)}{2}\right) \rho 
+$$
+El cual es aproximado, pues en la implementación de la generación aleatoria de grafos, la cantidad (N-1) de aristas se mantiene fija, variando la cantidad restante de aristas en el grafo dependiendo del arreglo de probabilidad $P$ generado.
+
+\subsection{Experimentos}
+
+Para la realización de experimentos del algoritmo se varia la cantidad de vértices dentro del siguiente conjunto $|V| \in \{10, 30, 50, 70, 90, 200, 300, 500, 1000\}$ y la densidad se varia según el siguiente conjunto $\rho \in \{0, 0.5, 1\}$, para cada conjunto de valores se llevaron a cabo 3 repeticiones, por lo que el valor final de comparaciones corresponde al promedio de 3 experimentos con el mismo conjunto de valores $|V|$ y $\rho$.
+
+Para la generación de datos aleatorios se utilizó el generador anteriormente mencionado y se probó el algoritmo con los mismos datos tanto para la cola binaria como para la cola de Fibonacci.
+
+Para comparar el rendimiento de cada una de las implementaciones se creó un contador de comparaciones para las colas, con tal de evidenciar las diferencias entre una y otra. Estas comparaciones consisten en recorridos entre nodos, inserciones y comparaciones entre valores de nodos.
+
+% PUNTO 5
+%Descripción de los experimentos a ejecutar, en qué condiciones, con qué valores, de dónde se obtienen los datos o cómo los generaron, etc.
+\newpage
+\section{Resultados}
+
+\begin{figure}[h!]
+    \centering
+    \begin{minipage}{.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={vertices},
+    ylabel={comparaciones},
+    xmin=0, xmax=1250,
+    ymin=0, ymax=12500,
+    xtick={250,500,750,1000,1250},
+    ytick={2500,5000,7500,10000,12500},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+    scale = 0.7,
+]
+    \addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	50.33333333	1.91E+00
+30	168.6666667	17.64044175
+50	328.3333333	32.34993846
+70	515.3333333	21.20971126
+90	700.6666667	51.49829195
+200	1685.666667	122.2541372
+300	3255.333333	59.39385178
+500	4882.666667	103.3928144
+1000	11726	434.4393577
+    };
+    \addplot[
+    color=orange,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	60	1.247219129
+30	200	17.17232916
+50	372.6666667	25.73943509
+70	545	58.77830288
+90	685	58.51685417
+200	1654	90.87109307
+300	2283.666667	267.8948108
+500	4414.666667	197.8059281
+1000	9133.666667	817.9548118
+    };
+    \legend{Binary,Fibonacci}
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de Dijkstra con $\rho = 0$}
+        \label{fig:grafico1}
+    \end{minipage}%
+    \hspace{0.5cm}
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={vertices},
+    ylabel={comparaciones},
+    xmin=0, xmax=1250,
+    ymin=0, ymax=35000,
+    xtick={250,500,750,1000,1250},
+    ytick={7000,14000,21000,28000,35000},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+    scale = 0.7,
+]
+    \addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	58	2.160246899
+30	340.6666667	9.022605356
+50	735.6666667	9.361069898
+70	1207.666667	6.997353997
+90	1660	10.27402334
+200	4646	30.37908637
+300	7660.666667	2.53E+01
+500	14211.66667	26.67222164
+1000	32567.33333	53.26940613
+    };
+    \addplot[
+    color=orange,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	65.66666667	2.762178421
+30	342.3333333	4.480410034
+50	687.6666667	13.63274924
+70	1052	13.29995823
+90	1477	14.44529912
+200	4105.666667	32.04972988
+300	6571.333333	38.65037971
+500	12301.66667	36.23789709
+1000	27631	38.37823457
+    };
+    \legend{Binary,Fibonacci}
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de Dijkstra con $\rho = 0.5$}
+        \label{fig:grafico1}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[h!]
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={vertices},
+    ylabel={comparaciones},
+    xmin=0, xmax=1250,
+    ymin=0, ymax=35000,
+    xtick={250,500,750,1000,1250},
+    ytick={7000,14000,21000,28000,35000},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+    \addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	60.66666667	2.372684056
+30	363.3333333	5.894127649
+50	744.3333333	10.0811522
+70	1173.333333	8.13E+00
+90	1679.666667	14.45555129
+200	4639.333333	25.29968526
+300	7692	28.12274682
+500	14315.33333	8.960820068
+1000	32780	42.59107888
+    };
+    \addplot[
+    color=orange,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	69	3.091206165
+30	347.6666667	6.605272866
+50	677.6666667	14.20745761
+70	1056.333333	19.33524895
+90	1480	9.809292646
+200	4147.666667	12.44841207
+300	6681	34.92213561
+500	12475	21.85304454
+1000	27991.33333	92.08490446
+    };
+    \legend{Binary,Fibonacci}
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de Dijkstra con $\rho = 1$}
+        \label{fig:grafico1}
+    \end{figure}
+\newpage
+
+Cada uno de los gráficos muestra una diferencia similar entre la cantidad de comparaciones de cada cola. Aunque las comparaciones aumenten demasiado a mayor $\rho$, las proporciones del rendimiento Binaria-Fibonacci se mantienen.\\
+
+Es posible afirmar de igual manera que a menor cantidad de vértices, más similar es la cantidad de comparaciones entre colas. \\
+
+
+Al momento de escoger una medida de rendimiento, se optó por las comparaciones de las colas ante el tiempo debido a que la ejecución de Fibonacci no reflejaba su buen rendimiento en los números. El código implementado no trabaja con arreglos y sale caro a la hora de ejecutar las colas aunque tenga menos comparaciones que la cola binaria, dado que se utilizan estructuras y puede tener un exceso de accesos a la memoria que toman más tiempo que trabajar con arreglos y utilizar índices para cada nodo (caso de la cola binaria). Por lo tanto, las comparaciones realizadas para ejecutar Dijkstra reflejaban mejor el buen rendimiento de la cola de Fibonacci que destacó por sobre la cola binaria.\\
+
+\begin{figure}[h!]
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={vertices},
+    ylabel={tiempo [seg]},
+    xmin=0, xmax=1250,
+    ymin=0, ymax=0.3,
+    xtick={250,500,750,1000,1250},
+    ytick={0.05,0.1,0.15,0.2,0.25,0.3},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+    \addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	7.07E-05	0
+30	0.000329633	0
+50	0.000741667	0
+70	0.001175467	0
+90	0.001839733	0
+200	0.007576867	0
+300	0.0180748	0
+500	0.0562356	0
+1000	0.2145071	0
+    };
+    \addplot[
+    color=orange,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+10	9.65E-05	0
+30	0.0004616	0
+50	0.000980433	0
+70	0.001708333	0
+90	0.0024718	0
+200	0.0129757	0
+300	0.024857433	0
+500	0.072527233	0
+1000	0.287409033	0
+    };
+    \legend{Binary,Fibonacci}
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de Dijkstra con $\rho = 1$ con comparaciones de tiempos de ejecución}
+        \label{fig:grafico6}
+    \end{figure}
+
+%En conclusión, gracias a la información de los gráficos, la cola de Fibonacci tiene un mejor rendimiento (menor cantidad de comparaciones) comparado con la cola Binaria a medida que aumenta la cantidad de vértices, sin importar el valor de $\rho$, esta diferencia de rendimiento se mantiene.
+
+
+\newpage
+\section{Conclusiones}
+
+Con el resultado obtenido en los experimentos, se pudo observar que la cantidad de comparaciones realizadas en la cola binaria aumenta considerablemente comparado con la cola de Fibonacci a medida que aumenta la cantidad de vértices en el grafo. Por tanto la cola de Fibonacci es una estructura que mejora el rendimiento del algoritmo de Dijkstra. \\
+
+En cada uno de los gráficos se evidencia correctamente lo planteado en la hipótesis, en la cual se señala que Fibonacci predomina al momento de elegir alguna cola para implementar el algoritmo de Dijkstra y probar su ejecución con grafos bastante grandes. Si se opta por compilar ejemplos con grafos pequeños la diferencia de rendimiento entre implementaciones (con distinta cola) no tendrán una gran diferencia. \\
+
+También es posible concluir que la densidad del grafo no afecta considerablemente el rendimiento de las colas, manteniéndose la diferencia en rendimiento a medida que aumenta la cantidad de vértices. \\
+
+Una gran curiosidad que se revela es la diferencia de tiempos de ejecución, donde la cola Binaria predomina por sobre Fibonacci, lo cual no coincide con la hipótesis planteada. Por lo que podemos suponer que se debe a la consideración de tiempos que toma el recorrer la memoria para las distintas colas. En el caso de la cola binaria solo se trabajó con arreglos e indices asignados para cada vertice de los grafos, por lo que en tiempos va bastante bien. Pero en el caso de la cola de Fibonacci, la implementación utilizada para este análisis trabaja con estructuras creadas especialmente para el programa (FibonacciNode, FibonacciHeap), por lo que el tiempo que lleva ejecutar menor cantidad de comparaciones se ve afectado por los accesos a memoria y manipulación de datos de estas estructuras. Por lo que las conclusiones están hechas en base a las comparaciones y no a los tiempos de ejecución, ya que en este caso habría que considerar muchos mas factores para comparar las implementaciones, o bien crear un programa de colas de Fibonacci que trabaje puramente con arreglos e indices al igual que la cola binaria.
+
+
+\newpage
+\section{Anexo}
+
+\begin{itemize}
+    \item Pseudocódigo para generator.py:
+    \begin{algorithm}
+    \caption{Generador de Grafos}
+    \label{alg:generator}
+    \begin{algorithmic}[1]
+    \Procedure{generator}{nnodes, density}
+    \State $\textit{edges} \gets \textit{nnodes*(nnodes-1)/2}$
+    \State $\textit{generator[]} \gets \textit{randBinomial(density,edges)}$
+    \State $\textit{graph} \gets \textit{[]} $
+    \State $\textit{text} \gets \textit{""} $
+    \For{$v \in \textit{range(1,nnodes+1)}$}
+        \For{$u \in \textit{range(v+1,nnodes+1)}$}
+            \State $\textit{node} \gets [v,u] $
+            \If{$ \textit{generator[i] or v+1==u}$} 
+                \State $\textit{weight} \gets \textit{random(1,10**9)}$
+                \State $\textit{node.append(weight)}$
+                \State $\textit{graph.append(node)}$
+                \State $\textit{nodestr} \gets \textit{str(node)}$
+                \State $\textit{total} \gets \textit{total + nodestr} $
+            \EndIf
+        \EndFor
+    \EndFor
+    \State $\textit{s} \gets \textit{random(1.nnodes)} $
+    \State $\textit{print(nnodes, len(graph))}$
+    \State $\textit{print(total+ str(s))}$
+    \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+\end{itemize}
+
+\end{document}

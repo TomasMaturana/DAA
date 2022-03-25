@@ -1,0 +1,4 @@
+BitVector==3.4.9
+mmh3==2.5.1
+numpy==1.19.4
+Pympler==0.9

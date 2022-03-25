@@ -1,0 +1,1069 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsthm}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{algorithm}
+\usepackage{multicol}
+\usepackage{subcaption}
+\usepackage[noend]{algpseudocode}
+\makeatletter
+\renewcommand{\ALG@name}{Algoritmo}
+\makeatother
+
+
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.9}
+
+%%%%%% Aquí comienza el documento %%%%%%%%
+
+
+\title{Cálculo de intersecciones en disco}
+\author{Lukas Gribbell \and Tomás Maturana \and Sebastián Sepúlveda}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+	En este informe se presenta el trabajo realizado sobre el cálculo de intersecciones sobre dos archivos en disco, con el fin de determinar los algoritmos más eficientes. Para este estudio se utilizaron los aprendizajes de cotas inferiores, análisis de costo de algoritmos y memoria externa entregados en el curso. La metodología ocupada para la generación de archivos fue aleatoria y se estudiaron variantes respecto a los algoritmos que más costo tienen en operaciones en CPU, como también en operaciones I/O. Los resultados mostraron que los algoritmos que ocupan búsqueda binaria tienen un menor impacto en el costo. También se dedujo la utilidad del uso de la memoria cuando se trabaja con varios archivos en disco.
+\end{abstract}
+
+\section{Introducción}
+
+%***Aquí va el problema, los algoritmos a estudiar, las métricas a estudiar, la notación, etc.***
+
+El problema a tratar consiste en encontrar el conjunto intersección entre dos listas P y T de enteros, asumiendo las siguientes condiciones:
+
+\begin{itemize}
+    \item P y T son archivos donde cada linea es un string que representa un entero de 9 dígitos, con posibles ceros a la izquierda.
+    \item $P << T$.
+    \item P cabe en memoria RAM (sin embargo debe leerse desde un archivo).
+    \item T está ordenado.
+\end{itemize}
+
+Para encontrar la solución a estos problemas se van a estudiar algoritmos que trabajan tanto con la lectura de los archivos, las comparaciones entre cada elemento de los archivos que son leídos y la generación del archivo de salida. Los algoritmos iniciales que se van a ocupar son \textbf{Búsqueda binaria}, \textbf{Búsqueda indexada} y \textbf{Búsqueda lineal}. 
+
+Se analizará el costo asociado a cada uno de estos algoritmos, tanto en operaciones I/O como en operaciones de comparación en CPU. Esto se hará bajo las mismas condiciones en cada experimento, donde se variarán los valores de $P$ y $T$ para corroborar o refutar las hipótesis que se plantearán para cada algoritmo.
+
+Una vez obtenidos los resultados de los algoritmos iniciales, se estudiarán variantes asociadas a la búsqueda lineal y una variante de los archivos de entrada, y se discutirá qué ventajas tiene cada uno respecto a las métricas que se hicieron en el comienzo.
+
+La finalidad de cada experimento será encontrar las estrategias apropiadas para resolver el problema de encontrar la intersección de los dos archivos y proponer el algoritmo que menor tiempo en ejecución tiene respecto a los demás dependiendo del valor de cada parámetro.
+
+\newpage
+\section{Descripción de los algoritmos}
+% PUNTO 1, 2 Y 3
+En esta sección se van a presentar la lógica detrás de cada algoritmo de búsqueda y se explicará el costo que tiene cada uno en operaciones I/O. La lectura de cada archivo se hará de a bloques de tamaño B.
+
+\subsection{Búsqueda binaria} 
+Este algoritmo consiste en leer los elementos de P uno a uno, realizando una búsqueda binaria en T para encontrar la intersección.\\
+El costo de leer $P$ para guardarlo en memoria es $O(|P|/B)$, mientras que la búsqueda binaria se realizará por cada bloque de $T$ lo cual tiene un costo de $\text{log}(|T|/B)$. Finalmente el costo total de este algoritmo es de $O(|P|\text{log}(|T|))$ dado a que $-\text{log}(B)$ es una constante. La función \textbf{BinarySearch} está definido en \textbf{Algoritmo \ref{alg:binary}}
+
+\begin{algorithm}
+\caption{Binary Search for Intersection}
+\label{alg:binary_search}
+\begin{algorithmic}[1]
+\State
+\Procedure{intersectionBS}{P, T}
+\State $\textit{inter} \gets \textbf{length}(P)$
+\State $\textit{k} \gets 0$
+\For{$n \in \{P\}$}
+\State $t \gets$ \textbf{binarysearch(i, T)}
+\If{$t$} 
+    \State $inter[k] \gets n$
+    \State $k \gets k + 1$
+\EndIf
+\EndFor
+\State \Return \textit{inter}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Búsqueda Lineal} 
+En esta estrategia cargaremos todos los elementos de $P$ en memoria principal. Luego, leemos $T$ linealmente cargándolo de a bloques, y por cada elemento que cargamos revisamos si está en $P$. Dado a que cargar $P$ en memoria tiene costo $O(|P|/B)$ y leer $|T|/B$ bloques de $T$ tiene costo $O(|T|/B)$ nos queda que el costo del algoritmo es $O(|T|/B)$ operaciones I/O dado a que $P<<T$
+
+\begin{algorithm}
+\caption{Linear Search for Intersection}
+\label{alg:linear_search}
+\begin{algorithmic}[1]
+\Procedure{Linear Search Intersection}{P, T}
+\State $\textit{out} \gets []$
+\State $\textit{p} \gets \textbf{read}(P)$
+\State $\textit{blocks} \gets length(T)/B$
+\For{$i \in \text{range(blocks)}$}
+\State $bt \gets {T[i*B : (i+1)*B[}$        
+\For{$t \in \ bt$}
+\State $is \gets \textbf{isIn}(t, p)$
+\If{$is$} 
+    \State $out \gets out + t$
+\EndIf
+\EndFor
+\EndFor
+\State \Return \textit{out}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+
+\subsection{Búsqueda indexada} 
+Para esta estrategia cargamos en memoria principal un arreglo $S$, cuyos elementos corresponden a los primeros elementos de los bloques con tamaño $|T|/B$ de $T$. Esto lo podemos realizar asumiendo que $|T|/B \leq M$ ($M$ memoria principal). El costo de este proceso es O(|T|/B) operaciones I/O. Luego cargamos $P$ en memoria principal, lo cual tiene un costo $O(|P|/B)$ y por cada elemento en $P$ hacemos una búsqueda binaria (ver \textbf{Algoritmo \ref{alg:binary_index}}) en $S$ para determinar en qué bloque de $T$ se encuentra. 
+\newline
+Finalmente, una vez conocido el índice donde se podría encontrar el elemento, leemos ese bloque para verificar si el elemento se encuentra ahí. Como leemos estos bloques por cada elemento en P, obtenemos un costo general de $O(|P|/B + |T|/B) + O(|P|) = O(|P| + |T|/B)$ operaciones I/O. Su implementación es la siguiente:
+
+\begin{algorithm}
+\caption{Indexed Search for Intersection}
+\label{alg:indexed_search}
+\begin{algorithmic}[1]
+\Procedure{Indexed Search Intersection}{P, T}
+\State $\textit{out} \gets []$
+\State $\textit{S} \gets []$
+\State $\textit{p} \gets \textbf{read}(P)$
+\State $\textit{numB} \gets length(T)/B$
+\For{$i \in \text{range(numB)}$}
+\State $S \gets S + T[i*B]$
+\EndFor
+\For{$e \in p$}
+\State $interv \gets \textbf{binary\_search\_index}(e,S)$
+\State $block \gets getblock(T, i*B) $
+\State $t \gets \textbf{isIn}(e, block)$
+\If{$t$} 
+    \State $out \gets out + e$
+\EndIf
+\EndFor
+\State \Return \textit{out}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\subsection{Algoritmos Búsqueda binaria}
+
+\begin{algorithm}
+\caption{Binary Search}
+\label{alg:binary}
+\begin{algorithmic}[1]
+\Procedure{Binary Search}{n, T}
+\State $\textit{hi} \gets \textbf{length}(T) - 1$
+\State $\textit{lo} \gets 0$
+\While{$lo<=hi$}
+\State $mid \gets (lo + hi)/2$
+\If{$n>T[mid]$} 
+    \State $hi \gets mid$
+\Else 
+    \If {$n < T[mid]$}
+        \State $lo \gets mid$
+    \Else 
+        \State \Return \textit{True}
+    \EndIf
+\EndIf
+\EndWhile
+\State \Return \textit{False}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Binary Search Indexed}
+\label{alg:binary_index}
+\begin{algorithmic}
+\Procedure{Binary Search Index}{n, T}
+\State $\textit{hi} \gets \textbf{length}(T) - 1$
+\State $\textit{lo} \gets 0$
+\While{$lo<=hi$}
+\State $mid \gets (lo + hi)/2$
+\If{$n>T[mid]$} 
+    \State $hi \gets mid$
+\Else 
+    \If {$n < T[mid]$}
+        \State $lo \gets mid$
+    \Else 
+        \State \Return \textit{mid}
+    \EndIf
+\EndIf
+\EndWhile
+\If{$n<T[mid]$}
+    \State \Return mid - 1
+\Else
+    \State \Return mid
+\EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+
+\subsection{Variantes Búsqueda lineal}
+Además, para entender qué parámetros y variables de un problema son realmente relevantes, se estudiarán dos variantes de la estrategia lineal, enfocándose en el costo en CPU. Cabe recalcar que el costo en CPU de la búsqueda lineal es O(|T||P|), ya que en el peor caso, cada elemento de P se compara con los elementos en T. Las variantes son:
+\begin{itemize}
+    \item Búsqueda lineal + búsqueda binaria: Tal como en la búsqueda lineal se comienza cargando $P$ en memoria principal. Luego al leer $T$ linealmente por bloques, a diferencia de la búsqueda lineal inicial, son los elementos de $P$ los que se buscan en el bloque leído, mediante búsqueda binaria. La cantidad de operaciones en $CPU$ son $P log(B)$ pues en el peor caso se tienen que buscar todos los elementos de $P$ en un bloque de $T$. Esto se realiza $T/B$ veces, por lo que la cantidad de comparaciones son $(|T|/B) |P| log(B)$.
+    
+    \item Búsqueda lineal + merge: Se comienza cargando $P$ en memoria, para luego ordenarla. Ya que ahora tanto $T$ como $P$ están ordenados, se hace una etapa de \textbf{merge} en la cual se itera cada arreglo mediante un puntero, buscando los elementos que tienen en común. La cantidad de comparaciones en $CPU$ son las de ordenar $P$, que en el peor caso serían $|P|log(|P|)$, más las de comparar los elementos de $P$ con los de $T$. Esto último se puede lograr eficientemente si por cada elemento en $P$, se comparan los elementos del bloque de $T$ cargado; si termina el bloque, se lee el siguiente y se sigue comparando. Para un peor caso de este algoritmo, se parte con un $p$ en $P$, el cual se compara con todo el bloque de $T$ cargado en memoria, luego se siguen leyendo los bloques de $T$ y comparando todos sus elementos con $p$, hasta llegar al último elemento de $T$. Hasta aquí se han hecho $|T|-1$ comparaciones. Luego el último elemento de $T$ se compara con todos los elementos de $P$ restantes, haciendo $|P|$ comparaciones más. En efecto, se hace una lectura completa de $T$ y de $P$, por lo que serían $|P| + |T| -1$ comparaciones. En efecto, el total de comparaciones del algoritmo serían $|P|log(|P|) + |P| + |T| -1$.
+\end{itemize}
+\newpage
+
+\section{Hipótesis}
+% PUNTO 4
+En esta sección se analizará el rendimiento de cada algoritmo anteriormente expuesto para resolver el problema de la intersección entre P y T. 
+
+Para ello se estudiarán distintos casos considerando 2 operaciones, el tiempo en ejecución y las operaciones de $I/O$ realizadas.
+
+El costo general de operaciones I/O de los algoritmos son los siguientes:
+
+\begin{align}
+\text{BB: }&\; P\; \text{log} \left(\frac{T}{B}\right) + \left(\frac{P}{B}\right) \\
+\text{BL: }&\; \left(\frac{T}{B}\right) + \left(\frac{P}{B}\right) \\
+\text{BI: }&\;P\ + \left(\frac{T}{B}\right) + \left(\frac{P}{B}\right)
+\end{align}
+
+La primera conjetura que se puede realizar es que la variante indexada tiene un mayor costo I/O respecto a la variante lineal, lo que se traduciría en un mayor tiempo de ejecución. 
+Las deducciones entre la variante binaria v/s la variante lineal y la variante indexada se muestran en las siguientes tablas:
+\begin{table}[ht]
+\begin{tabular}{L{3cm}|L{6cm}|L{6cm}|}
+\cline{2-3}
+                                    & \# de operaciones $I/O$                  & Tiempo de ejecución\\ \hline
+\multicolumn{1}{|l|}{Caso $|P|>|T|/B$} & La variante binaria realiza una mayor cantidad de operaciones I/O en comparación de la variante lineal e indexada & El tiempo de ejecución de la variante binaria va a ser mayor respecto al tiempo de la variante lineal e indexada \\ \hline
+\multicolumn{1}{|l|}{Caso $|P|<|T|/B$}  & La variante  binaria realiza menos comparaciones operaciones I/O comparado a la variante lineal e indexada & La variante binaria tendrá menos tiempo de ejecución comparada a la variante lineal e indexada \\ \hline
+\end{tabular}
+\caption{Hipótesis sobre la relación entre la variante binaria v/s variante indexada y lineal}
+\label{table:hypothesis}
+\end{table}
+
+La hipótesis para el caso binaria v/s lineal se puede verificar desarrollando la desigualdad:
+\begin{align}
+    |P| &> |T|/B \\ 
+    |P| \text{log}\left(\frac{T}{B}\right) &> \text{log}\left(\frac{T}{B}\right) |T|/B > |T|/B 
+\end{align}
+Análogamente para el caso binaria v/s indexada tenemos, con $t=|T|/B$:
+\begin{align}
+    |P| &> t \\ 
+    2|P| &> t + P \\
+    2|P| \text{log}(t) &>  (t + P) \text{log}(t) \\ 
+    |P| \text{log}(t) &>  (t + P) \text{log}(t)/2 > t + P
+\end{align}
+
+Cabe destacar que el tiempo de ejecución también debería considerar el tiempo que gastan los algoritmos por cada comparación que realizan. Por ejemplo, el algoritmo de búsqueda lineal realiza $|P||T|$ comparaciones, lo cual es mayor comparado a los otros algoritmos que realizan $|P|\text{log}\left(\frac{|T|}{B}\right)$ comparaciones. Por tanto, en la experimentación que se realice de los algoritmos, la tabla anterior ayudará a comparar de manera más fidedigna la variante binaria y la indexada, en comparación al tiempo de ejecución.
+
+\subsection{Variantes búsqueda lineal}
+% PUNTO 11
+Para saber cual de las dos variantes tiene un menor costo de operaciones en $CPU$, se resta el costo de la variante merge con el de la variante binaria, resultando:
+$$
+c(\text{merge}) - c(\text{binaria}) = \left(|P| \text{log} |P| + |T| + \frac{|T||P|}{B}\right) - \left(\frac{|T||P|\text{log} B}{B}\right)
+$$
+
+Factorizando por $\frac{TP}{B}$:
+$$
+|P| \text{log}|P| + |T| + \left(\frac{|T||P|}{B}\right)(1 - log B)
+$$
+
+Como $B>10$ se tiene que $(1-\text{log} B)<0$. Definiendo $-c = (\text{log} B - 1)$ se factoriza por $T$:
+$$
+|P|\cdot log |P| + |T|\left(1 - \frac{|P|}{B}c\right)
+$$
+
+Luego, definiendo $-C= \left(\frac{|P|}{B} c - 1\right)$, y para el caso $|P|>B$ se tiene que $C<0$. Entonces se impone:
+$$
+|P|\cdot log |P| - |T|C < 0
+$$
+
+Finalmente se obtiene la siguiente relación
+$$
+\frac{ \text{log} |P|}{C} < \frac{|T|}{|P|}
+$$
+
+
+
+Lo cual es una tautología pues $C<0$ y $P<<T$. Esto muestra que la variante merge es de orden menor que la variante binaria, si se cumple que $|P| > B > 10$.
+
+
+\subsection{Variante en tamaño de P}
+% PUNTO 13
+Se analizará una variante en el archivo P, donde se dividirá en L archivos $P_1, P_2, \ldots, P_l$ de tamaño Q con $Q<<P$. La relación de T respecto a P se mantendrá. Surge la pregunta, ¿Tendrá una ventaja la búsqueda indexada en comparación con la búsqueda lineal respecto a operaciones I/O?. \\
+\newline
+En efecto, siguiendo la estrategia de la búsqueda indexada el gran costo que tiene en cuanto a las operaciones I/O es la generación del arreglo de índices S. En esta variante por tanto conviene modificar el algoritmo de B.I. de tal manera que se genere 1 sola vez el arreglo S. De esta manera el costo que tiene en operaciones I/O, suponiendo $Q>B$, en el peor caso es la siguiente:
+$$
+L\left(Q + \frac{Q}{B}\right) + \frac{T}{B}
+$$
+
+Esto es debido a que el costo de generar $S$ es $\frac{T}{B}$ y la lectura de a bloques de Q más la lectura de un bloque en $T$ que se hace Q veces en el peor caso, genera la otra variable, la cual se hace L veces.
+
+Mientras que en la estrategia de búsqueda lineal, no es posible hacer modificaciones de eficiencia, pues es necesario leer cada archivo $P_i$ junto con el archivo completo $T$ en el peor caso. Resultando la cantidad de operaciones I/O:
+$$
+L\left(\frac{Q}{B} \cdot \frac{T}{B}\right)
+$$
+
+\newpage
+
+Si se supone $Q<B$ nos queda la siguiente expresión para la variante indexada:
+
+$$
+LQ + \frac{T}{B}
+$$
+
+Mientras que para la variante lineal queda:
+$$
+L \cdot \frac{T}{B}
+$$
+
+Donde también se cumple que la estrategia de búsqueda indexada es más eficiente que la búsqueda lineal, pues:
+$$
+Q<\frac{T}{B}
+$$
+
+Los dos casos permiten asegurar que la búsqueda indexada tiene una menor cantidad de operaciones I/O en comparación con la búsqueda lineal, ya que podemos asegurar que $Q<\frac{T}{B}$, pues $Q<<P<<T$
+
+
+\newpage
+\section{Diseño experimental}
+% PUNTO 5
+%Descripción de los experimentos a ejecutar, en qué condiciones, con qué valores, de dónde se obtienen los datos o cómo los generaron, etc.
+
+Para cada algoritmo se realizarán distintos experimentos que permitirán analizar de mejor manera las hipótesis planteadas. Para realizar los experimentos, se simulará una memoria principal de $M=3\cdot 10^4$ bytes, por lo tanto los algoritmos para cada estrategia no mantendrán en memoria variables de tamaño mayor a M; la lectura y escritura de datos se hará en bloques de tamaño $B=500$ y se medirá la cantidad de inputs y outputs, junto con el tiempo de ejecución para cada estrategia. \\ \newline
+Los archivos P y T serán generados aleatoriamente a través del script \texttt{generador.py}, el cual genera números uniformemente aleatorios en un rango de $R=[1, 10^9]$, recibiendo como parámetros la cantidad de lineas que tendrá cada archivo. El generador se ejecuta de la siguiente manera:\\ \newline
+\texttt{generador.py <lineas de P>\; <lineas de T>}\\ \newline
+% PUNTO 6
+El primer experimento que se va a realizar con los datos generados será calcular su \textit{costo promedio experimental}. Para ello definiremos la siguiente fórmula:
+$$
+Q_{k,n}(A) = \sum_{I \in S_{k,n}}^{}c(A,I) / k
+$$
+
+Donde $c(A,I)$ es el costo de ejecutar el algoritmo $A$ sobre la instancia $I$, lo cual para este experimento será medido en segundos que demora la ejecución. $S_{k,n}$ se define como un conjunto de tamaño k, cuyos elementos son instancias de tamaño $n$ generadas aleatoriamente.\\ \newline
+Debido a que $n$ está compuesto de dos variables, el largo de $P$ y el largo de $T$, se asumirá que $|P|=10^4$ y $|T|=10^6$ bytes respectivamente. De esta manera la variable $Q$ dependerá solamente de $k$, ya que el tamaño de las instancias estará fijo.\\ \newline 
+El valor de $k$ influye en la varianza de la variable $Q$; Entre mayor sea el valor de $k$ menor debiera ser la varianza. Para comprobar esto se gráfica en la \textbf{Figura \ref{fig:grafico1}} valores para $Q_k$, solamente para la estrategia de \textbf{búsqueda binaria}, variando $k$ entre 2 y 25. 
+
+%%%%
+\begin{figure}[h!]
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={numero de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=-2, xmax=28,
+    ymin=3.51, ymax=3.65,
+    xtick={0,4,8,12,16,20,24,28},
+    ytick={3.52,3.54,3.56,3.58,3.6,3.62,3.64},
+    legend pos=north east,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+    \addplot[
+    color=black,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+1	3.635700334	0.006572533
+2	3.626544084	0.036107313
+3	3.601407021	0.028680459
+4	3.579089126	0.022362647
+5	3.560299199	0.017926022
+6	3.544382853	0.015035647
+7	3.559235379	0.012904485
+8	3.562303727	0.011332103
+9	3.571257567	0.010241023
+10	3.564136949	0.00926583
+11	3.559656653	0.008435872
+12	3.55409851	0.007733009
+13	3.5450407	0.007176167
+14	3.541994615	0.006724418
+15	3.538603658	0.006366407
+16	3.535151011	0.006091396
+17	3.531348684	0.005894366
+18	3.529102561	0.005744696
+19	3.5283317	0.005615583
+20	3.527851971	0.005500243
+21	3.533078558	0.005337902
+22	3.534227222	0.005178974
+23	3.533950624	0.005034727
+24	3.533975392	0.004901091
+25	3.534961324	0.004770366
+    };
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de búsqueda lineal con |P|=$10^4$ bytes}
+        \label{fig:grafico1}
+    \end{figure}
+%%%%
+% PUNTO 7
+El tamaño de P será entre [$10^2$, $10^4$] bytes y para T será $[10^4,10^6]$ bytes, respetando las condición inicial donde $P << T$. De este modo, P podría ser almacenado por completo en memoria, pero T deberá ser leído por bloques para no superar el limite en memoria.\\
+
+Como se aprecia en la Figura \ref{fig:desviacion1}, al repetir los experimentos 15 veces, se tiene una desviación estándar del costo promedio no tan grande, lo que indica que es una cantidad confiable de experimentos a realizar para cada estrategia y tener datos contundentes. En efecto, para intentar verificar las hipótesis, se ejecutará 15 veces cada estrategia con las instancias P y T ya mencionadas, registrando los tiempos de ejecución para cada una.\\
+
+Además, se comparará la búsqueda lineal y sus dos variantes, con el fin de encontrar diferencias significativas con las tres estrategas iniciales. Para esto, se ejecutarán las variantes, con 4 instancias P de $50$, $10^2$, $5*10^2$ y $10^3$.
+
+Para todos los experimentos realizados en este informe se utilizará una máquina virtual con las siguientes especificaciones:
+\begin{itemize}
+    \item CPU Intel Core i5-8400 (solo 4 núcleos dedicados a la máquina virtual)
+    \item RAM 8GB DDR4 2666MHz (solo 4GB dedicados)
+    \item HDD 1TB 7200 rpm
+    \item SO Linux (Ubuntu 18.04)
+\end{itemize}
+
+
+\newpage
+\section{Resultados}
+ 
+% PUNTO 6
+Debido a las diferencias de rendimiento promedio en los distintos algoritmos, se mostrarán los resultados de los mismos casos (tamaño de P y T en bytes) en distintos gráficos.
+ 
+\begin{figure}[!ht]
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0.240, ymax=0.26,
+    xtick={0,5,10,15},
+    ytick={0.24,0.25,0.26},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+      1	0.241303765	5.8357E-05
+2	0.240891298	0.004025925
+3	0.240884874	0.003797143
+4	0.250290755	0.002867722
+5	0.253525617	0.002470484
+6	0.253371951	0.002187073
+7	0.253406994	0.001980137
+8	0.252040017	0.001775344
+9	0.250955663	0.001593851
+10	0.250234959	0.001440273
+11	0.249888755	0.001312159
+12	0.248872029	0.001202827
+13	0.249147301	0.001110413
+14	0.24931796	0.001031446
+15	0.250012121	0.000965318
+    };
+\end{axis}
+\end{tikzpicture}
+        \caption{BL: $P=5\cdot 10^2$, $T=10^6$}
+        \label{fig:desviacion1}
+    \end{subfigure}%
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0, ymax=0.1,
+    xtick={0,5,10,15,17},
+    ytick={0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.0186237	0.000136539
+3	0.018449897	9.68541E-05
+4	0.018657885	0.000105722
+5	0.018578827	9.61068E-05
+6	0.01837413	8.01847E-05
+7	0.018354118	6.87316E-05
+8	0.01827382	6.09016E-05
+9	0.018311198	5.43117E-05
+10	0.018266603	4.95974E-05
+11	0.01822209	4.6578E-05
+12	0.018210498	4.42645E-05
+13	0.018180364	4.29072E-05
+14	0.018210744	4.10761E-05
+15	0.018171593	4.01526E-05
+
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.060267434	0.000524496
+3	0.062208346	0.000458973
+4	0.061679851	0.000356019
+5	0.061474016	0.000286554
+6	0.061305319	0.000238802
+7	0.060957536	0.000211011
+8	0.060883488	0.000192402
+9	0.060706565	0.000183959
+10	0.060795403	0.000173568
+11	0.061117744	0.000158819
+12	0.061074666	0.000146971
+13	0.062617793	0.000168601
+14	0.06246134	0.000176631
+15	0.062280981	0.000176953
+
+
+    };
+    \legend{BB,BI}
+\end{axis}
+\end{tikzpicture}
+        \caption{BB y BI: $P=5\cdot 10^2$, $T=10^6$}
+    \end{subfigure}%
+
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0.4, ymax=0.42,
+    xtick={0,5,10,15,17},
+    ytick={0.4,0.41,0.42},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.405505221	0.002284539
+3	0.413917158	0.001990184
+4	0.413262381	0.001692155
+5	0.41142984	0.001380622
+6	0.410995637	0.00116073
+7	0.409558661	0.00099763
+8	0.410510997	0.000874635
+9	0.411006377	0.000784327
+10	0.410281634	0.0007062
+11	0.410886512	0.000646237
+12	0.410113754	0.000592393
+13	0.411355966	0.000555647
+14	0.410399493	0.000516482
+15	0.409811376	0.000482368
+    };
+\end{axis}
+\end{tikzpicture}
+        \caption{BL: $P=10^3$, $T=10^6$},
+    \end{subfigure}%
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0, ymax=0.1,
+    xtick={0,5,10,15,17},
+    ytick={0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.034672776	0.000195121
+3	0.034965954	0.000134044
+4	0.034886114	0.000109831
+5	0.034926266	9.20231E-05
+6	0.035010246	7.71886E-05
+7	0.035057461	6.61665E-05
+8	0.035063523	5.78957E-05
+9	0.03516643	5.27299E-05
+10	0.035122281	4.78256E-05
+11	0.035170663	4.45655E-05
+12	0.035177135	4.19439E-05
+13	0.03528662	4.23661E-05
+14	0.035448208	4.80066E-05
+15	0.035493642	5.32142E-05
+
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.065976654	0.000789176
+3	0.06616214	0.000701686
+4	0.066325493	0.000609455
+5	0.066432479	0.000536769
+6	0.068214784	0.000460626
+7	0.068182395	0.000404867
+8	0.068617675	0.000378344
+9	0.068311771	0.000346658
+10	0.068121153	0.000317087
+11	0.068011414	0.000291232
+12	0.067982794	0.000269333
+13	0.068280103	0.000254795
+14	0.068194027	0.000240958
+15	0.068425458	0.00023226
+
+
+    };
+    \legend{BB,BI}
+\end{axis}
+\end{tikzpicture}
+        \caption{BB y BI: $P=10^3$, $T=10^6$}
+    \end{subfigure}%
+\end{figure}
+% PUNTO 8, 9 Y 10
+Desde un inicio se esperaba que el algoritmo lineal fuera el menos eficiente, debido a la gran cantidad de comparaciones en CPU que realiza, lo cual se afirma con la diferencia de valores en los gráficos anteriores. Y con |P|=$50$, el algoritmo \textbf{más eficiente} es \textbf{búsqueda binaria} con un rendimiento promedio de $2*10^{-2}$ y el \textbf{menos eficiente}, como se esperaba, es la \textbf{búsqueda lineal} con un rendimiento promedio de $0.41$. 
+
+Además se muestra que, tal como se mencionó en la hipótesis, en este caso gana la búsqueda binaria a la búsqueda indexada en eficiencia debido a que se cumple que $|P| < |T|/B$.\\ \newline
+Buscando algún cambio entre los rendimientos, se procedió con el experimento con |P|=$100$. Los valores de rendimiento no cambiaron mucho y los posicionamientos siguen de la misma manera que en el experimento anterior.
+
+\begin{figure}[!ht]
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=1.69, ymax=1.72,
+    xtick={0,5,10,15,17},
+    ytick={1.69,1.7,1.71,1.72},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	1.697914866	0.004130317
+3	1.713661845	0.003716083
+4	1.708536689	0.002848889
+5	1.710392092	0.00243013
+6	1.708613888	0.002065484
+7	1.711408525	0.00192178
+8	1.709168641	0.001722678
+9	1.707640336	0.001539895
+10	1.706699262	0.001386895
+11	1.704848962	0.001266567
+12	1.703410278	0.001183667
+13	1.702392305	0.001130707
+14	1.702440528	0.001083306
+15	1.701674307	0.001054676
+    };
+\end{axis}
+\end{tikzpicture}
+        \caption{BL: $P=5\cdot 10^3$, $T=10^6$},
+    \end{subfigure}%
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0.06, ymax=0.28,
+    xtick={0,5,10,15,17},
+    ytick={0.06,0.08,0.1,0.12,0.14,0.16,0.18,0.2,0.22,0.24,0.26,0.28},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.183304854	0.000841118
+3	0.18117959	0.001387522
+4	0.181773899	0.001314619
+5	0.186150015	0.001077106
+6	0.186228873	0.00092114
+7	0.185422695	0.000791997
+8	0.184484075	0.000695844
+9	0.183606591	0.000637264
+10	0.184541551	0.000575265
+11	0.18551736	0.000525186
+12	0.186677955	0.000501617
+13	0.186662698	0.000480636
+14	0.186371871	0.000457135
+15	0.186209949	0.000434378
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.078657721	0.000703924
+3	0.080009352	0.000469657
+4	0.082337041	0.000668243
+5	0.081069322	0.000571045
+6	0.080426675	0.000479661
+7	0.080165382	0.000411386
+8	0.080046016	0.000359971
+9	0.079877062	0.000320659
+10	0.079669243	0.000291302
+11	0.079650059	0.0002675
+12	0.079442261	0.000250649
+13	0.079853112	0.000231945
+14	0.079937589	0.000215572
+15	0.080411209	0.000202515
+    };
+    \legend{BB,BI}
+\end{axis}
+\end{tikzpicture}
+        \caption{BB y BI: $P=5 \cdot 10^3$, $T=10^6$}
+    \end{subfigure}%
+
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=3.27, ymax=3.32,
+    xtick={0,5,10,15,17},
+    ytick={3.27,3.28,3.29,3.3,3.31,3.32},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	3.293226094	0.003561297
+3	3.299382222	0.002395953
+4	3.294305539	0.002347665
+5	3.292010551	0.00251164
+6	3.294801588	0.002288124
+7	3.297383208	0.00200648
+8	3.296523055	0.00181963
+9	3.297737213	0.001643269
+10	3.301652171	0.001484676
+11	3.30670123	0.001468066
+12	3.306029866	0.001426577
+13	3.307187668	0.001418036
+14	3.306468826	0.001387419
+15	3.306732629	0.001363071
+    };
+\end{axis}
+\end{tikzpicture}
+        \caption{BL: $P=10^4$, $T=10^6$},
+    \end{subfigure}%
+    \begin{subfigure}[t]{.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={número de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0.09, ymax=0.45,
+    xtick={0,5,10,15,17},
+    ytick={0.09,0.13,0.17,0.21,0.25,0.29,0.33,0.37,0.41,0.45},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.358458617	0.001685486
+3	0.360881613	0.001167196
+4	0.358843442	0.00115041
+5	0.358977996	0.001082658
+6	0.364328193	0.000993721
+7	0.363825779	0.000898254
+8	0.362793746	0.000795169
+9	0.362096749	0.000707442
+10	0.361486952	0.000637617
+11	0.364387558	0.000624575
+12	0.364545787	0.000615663
+13	0.363980928	0.00059192
+14	0.364381366	0.000579085
+15	0.364312986	0.000565279
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.103210743	0.000903252
+3	0.103458573	0.000911879
+4	0.101734539	0.000688876
+5	0.100934127	0.000559064
+6	0.100399238	0.000495083
+7	0.10013927	0.000461232
+8	0.099801325	0.000450579
+9	0.099436698	0.000456296
+10	0.100632315	0.000417858
+11	0.101291285	0.00038001
+12	0.102825792	0.000367934
+13	0.103061298	0.000362763
+14	0.102784334	0.000350979
+15	0.102456156	0.000335003
+    };
+    \legend{BB,BI}
+\end{axis}
+\end{tikzpicture}
+        \caption{BB y BI: $P=10^4$, $T=10^6$}
+    \end{subfigure}%
+\end{figure}
+
+Con |P|=$500$ se aprecia el gran cambio en el rendimiento, la búsqueda indexada marca menores tiempos que la búsqueda binaria, quedando como el algoritmo más eficiente para estos valores. En el caso de la búsqueda lineal se aprecia un gran aumento a medida que |P| es más grande.
+
+Se puede notar que con |P| = $10^3$ la \textbf{búsqueda indexada} sigue siendo la \textbf{más eficiente} dado a que su aumento es bastante menor en comparación con la binaria mientras |P| aumenta.
+
+
+
+\newpage
+
+\begin{figure}[h!]
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+    xlabel={$\rho = \frac{|T|}{|P|}$},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=-100, xmax=2500,
+    ymin=0, ymax=0.48,
+    xtick={0,300, 700,1100,1500,1900,2300},
+    ytick={0,0.04,0.08,0.12,0.16,0.2,0.24,0.28,0.32,0.36,0.4,0.44,0.48},
+    legend pos=north east,
+    ymajorgrids=true,
+    grid style=dashed,
+]
+
+\addplot[
+    color=blue,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+100	3.300348651 0
+200	1.706175498 0
+1000 0.410073851 0
+2000 0.248942937 0
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+100	0.361829069 0
+200	0.184987088 0
+1000	0.035063018 0
+2000	0.018350623 0
+    };
+    \addplot[
+    color=green,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+100	0.10140425 0
+200	0.080065568 0
+1000	0.067555004 0
+2000	0.061316423 0
+    };
+    \legend{BL,BB,BI}
+\end{axis}
+\end{tikzpicture}
+        \caption{Costo promedio según densidad de los archivos}
+        \label{fig:densidad}
+    \end{figure}
+    
+Para ver resultados generales se procedió con una comparación entre el rendimiento y los valores de |P| y |T|. Esto se logra definiendo $\rho = \frac{|T|}{|P|}$ y así ver la eficiencia en tiempo de ejecución entre los tres algoritmos dependiendo de la relación entre estos dos valores. En la Figura~\ref{fig:densidad}, se puede apreciar la leve ventaja en eficiencia de la \textbf{búsqueda binaria} cuando |P| es menor ($\rho$ es mayor), hasta que en $\rho \approx 1000$ se ve que su rendimiento se comienza a disminuir con respecto a la \textbf{búsqueda indexada}, demostrando que a medida que la relación $\frac{T}{P}$ aumenta, la búsqueda indexada es más eficiente.
+
+% PUNTO 12
+
+\subsection{Variante búsqueda lineal}
+
+\begin{figure}[h!]
+        \centering
+        \begin{tikzpicture}
+\begin{axis}[
+%    title={Temperature dependence of CuSO$_4\cdot$5H$_2$O solubility},
+    xlabel={numero de repeticiones (k)},
+    ylabel={$Q_{k,n}[seg]$},
+    xmin=0, xmax=17,
+    ymin=0, ymax=6.5,
+    xtick={0,5,10,15,17},
+    ytick={0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5},
+    legend style={at={(0.5,0.7)},anchor=west},
+    ymajorgrids=true,
+    grid style=dashed,
+]
+    \addplot[
+    color=black,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	3.293226094	0.003561297
+3	3.299382222	0.002395953
+4	3.294305539	0.002347665
+5	3.292010551	0.00251164
+6	3.294801588	0.002288124
+7	3.297383208	0.00200648
+8	3.296523055	0.00181963
+9	3.297737213	0.001643269
+10	3.301652171	0.001484676
+11	3.30670123	0.001468066
+12	3.306029866	0.001426577
+13	3.307187668	0.001418036
+14	3.306468826	0.001387419
+15	3.306732629	0.001363071
+    };
+    \addplot[
+    color=green,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	0.721940564	0.003798967
+3	0.72581598	0.002820267
+4	0.723783516	0.002558126
+5	0.725540934	0.002197125
+6	0.730521658	0.001838257
+7	0.729502341	0.001575657
+8	0.729051703	0.001380042
+9	0.728306291	0.001234319
+10	0.729546775	0.001110888
+11	0.731808466	0.001030767
+12	0.732873238	0.00098489
+13	0.734377462	0.000982382
+14	0.733061674	0.000946289
+15	0.731563329	0.000893461
+    };
+    \addplot[
+    color=red,
+    mark=square,error bars/.cd,y dir=both, y explicit,
+    error bar style={line width=2pt,solid},
+    error mark options={line width=0.1pt,mark size=4pt,rotate=90},
+    ]
+    table [x=x, y=y, y error=y-err]{%
+      x y y-err
+2	5.79368308	0.005727738
+3	5.767939328	0.006104501
+4	5.762001389	0.00682132
+5	5.749664842	0.008496644
+6	5.756327571	0.008292632
+7	5.772388283	0.007245621
+8	5.781911822	0.006340041
+9	5.786402198	0.005654648
+10	5.792269959	0.005187317
+11	5.791077078	0.004783873
+12	5.799364969	0.0046119
+13	5.796922769	0.004404659
+14	5.79533488	0.004195826
+15	5.799860529	0.004088732
+    };
+    \legend{linear,linear+merge,linear+binary}
+\end{axis}
+\end{tikzpicture}
+        \caption{rendimiento promedio de variantes de la búsqueda lineal con |P|=$10^4$ bytes}
+        \label{fig:variantes}
+    \end{figure}
+
+En el resultado obtenido con las variantes de la búsqueda lineal, mostrado en el gráfico de la \textbf{Figura \ref{fig:variantes}} se logró comprobar que el rendimiento promedio de la variante binaria es más lento que la variante lineal inicial, mientras que la variante merge es la más eficiente de las 3. Esto se puede deber a que el algoritmo lineal implementado para la variante original verifica si un elemento de $P$ está en el bloque con el \texttt{keyword} de python \texttt{in}, el cual verifica más rápido que una búsqueda binaria en el bloque. 
+
+Con el gráfico anterior es posible confirmar la hipótesis de que la variante binaria iba a ser más lenta que la variante merge debido a que genera una mayor cantidad de comparaciones en CPU.
+
+\newpage
+\section{Conclusiones}
+
+Gracias a los experimentos, se pudo ver en la práctica los tiempos de ejecución de cada estrategia y las variantes de la estrategia lineal y de las condiciones iniciales. Se pudieron confirmar las hipótesis planteadas, dejando ver que la búsqueda lineal es la estrategia menos eficiente en tiempo de ejecución, debido a la alta cantidad de comparaciones realizadas en CPU. 
+
+También se logró evidenciar, en concordancia con las hipótesis planteadas, de que la eficiencia de las estrategias \textit{binaria} e \textit{indexada} depende de la cantidad de datos a intersectar, siendo la estrategia binaria más eficiente para $P$ de menor magnitud. Mientras que para un mayor $P$, es la estrategia indexada la más eficiente. Esto tuvo directa relación con el costo de operaciones $I/O$ dependiendo de los casos, por lo que esta medida fue un indicador decisivo para comprobar en qué momento los algoritmos realizaban un mayor tiempo de ejecución.
+
+Respecto a las variantes de la estrategia lineal, se pudo observar que la variante \textit{merge} mejora el tiempo de ejecución, debido principalmente a la disminución de las operaciones realizadas en CPU que realiza la búsqueda lineal inicial. Mientras que, para la variante binaria, se pudo evidenciar que no mejoró los resultados debido a la mayor cantidad de operaciones en CPU que realiza en comparación al keyword \texttt{in} de python.
+Otro resultado obtenido de este experimento es que el costo de operaciones $I/O$ deja de estar relacionado directamente con el tiempo de ejecución del algoritmo con los mismos parámetros, tomando el caso de la búsqueda \textit{lineal} y la variante \textit{binaria} que tienen misma cantidad de operaciones $I/O$ pero la segunda requiere más tiempo para llevar a cabo lo solicitado.
+
+Como resultado se obtuvo finalmente que a pesar de mejorar en los tiempos, las variantes lineales no permitieron mejorar el algoritmo en comparación con la búsqueda binaria e indexada.
+
+Para el estudio de la separación del archivo $P$ se obtuvo que efectivamente la búsqueda indexada proporciona una ventaja considerable con la búsqueda lineal en operaciones I/O debido principalmente al buen uso de los datos almacenados en memoria.
+
+
+
+\end{document}
